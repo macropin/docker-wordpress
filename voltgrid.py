@@ -291,7 +291,8 @@ def main(argv):
         os.setgid(group)
         os.setuid(user)
         print("Running as %s:%s" % (os.geteuid(), os.getegid()))
-        os.execvp(arg[1], arg[1:])  # replace current process
+        sys.stdout.flush()
+        os.execvpe(arg[1], arg[1:])  # replace current process, inherit environment
 
     # Unset inherited environment variables that dont need to be configured
     for e in ['HOME',]:
