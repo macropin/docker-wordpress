@@ -28,21 +28,25 @@ GIT_EXCEPTION = 128
 class ConfigManager(object):
     """ Configuration Manager """
 
+    config = {}
+    environment = os.environ
+
+
     def __init__(self, cfg_file=None):
         # Assume same dir as voltgrid.py if not specified
         cfg_file = cfg_file or os.path.join(os.path.abspath(os.path.split(__file__)[0]), 'voltgrid.conf')
-        self.environment = os.environ
+        self.local_config = self.load_local_config(cfg_file)
+        self.spawn_uid = self.local_config.get('user', {}).get('uid', DEFAULT_UID)
+        self.spawn_gid = self.local_config.get('user', {}).get('gid', DEFAULT_GID)
+        super(self.__class__, self).__init__()
+
+    def load_config(self):
         if os.getenv('CONFIG') is not None:
             self.config = json.loads(os.getenv('CONFIG'))
         else:
             self.config = {}
             for key in self.environment.keys():
                 self.config[key] = os.environ[key]
-        self.local_config = self.load_local_config(cfg_file)
-        self.spawn_uid = self.local_config.get('user', {}).get('uid', DEFAULT_UID)
-        self.spawn_gid = self.local_config.get('user', {}).get('gid', DEFAULT_GID)
-        self.update_git_conf()
-        super(self.__class__, self).__init__()
 
     @staticmethod
     def load_local_config(cfg_file):
@@ -91,15 +95,16 @@ class ConfigManager(object):
         env_file_path = self.local_config.get('env_file_path', None)
         if env_file_path is not None and os.path.exists(env_file_path):
             # Load environment variables from .env file
-            reg = re.compile('(?P<name>\w+)(\=(?P<value>.+))')
+            reg = re.compile('(?P<key>\w+)(\=(?P<value>.+))')
             for line in open(env_file_path):
                 m = reg.match(line)
                 if m:
-                    name = m.group('name')
-                    value = ''
+                    key = m.group('key')
                     if m.group('value'):
                         value = m.group('value')
-                    os.environ[name] = value
+                    else:
+                        value = ''
+                    os.environ[key] = value
 
 
 class GitManager(object):
@@ -302,7 +307,8 @@ def main(argv):
     # Load config
     c = ConfigManager(VG_CONF_PATH)
     c.load_envs()
-    config = c.config
+    c.load_config()
+    c.update_git_conf()
     local_config = c.local_config
     files = local_config.get('files', {})
     dirs = local_config.get('dirs', {})
@@ -321,11 +327,10 @@ def main(argv):
 
     # Write config from templates
     if len(files) > 0:
-        t = TemplateManager(files, context=config)
+        t = TemplateManager(files, context=c.config)
         t.render_files()
 
     # Spawn Next Process
-    sys.stdout.flush()
     if len(argv) > 1:
         execute(argv, c.spawn_uid, c.spawn_gid)
 
