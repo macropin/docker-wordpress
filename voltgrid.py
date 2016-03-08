@@ -307,6 +307,7 @@ def main(argv):
     # Load config
     c = ConfigManager(VG_CONF_PATH)
     c.load_envs()
+    c.write_envs()
     c.load_config()
     c.update_git_conf()
     local_config = c.local_config
