@@ -1,2 +1,3 @@
-# docker-wordpress
-Experimental Wordpress Docker Container
+# Docker Wordpress
+
+Experimental Wordpress Docker Container with user updatable plugins.
